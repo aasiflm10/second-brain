@@ -18,6 +18,7 @@ model User{
   id String @id @default(uuid())
   username String @unique
   password String
+  links Link[]
   contents Content[]
 }
 
@@ -35,4 +36,11 @@ model Content{
   userId String
   user User @relation(fields: [userId] , references: [id])
   tags Tag[] @relation("ContentTags")
+}
+
+model Link{
+  id String @id @default(uuid())
+  hash String
+  userId String 
+  user User @relation(fields: [userId], references: [id])
 }
