@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+import { JWT_SECRET } from "./config";
+import { userMiddleware } from "./middleware";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -72,9 +74,7 @@ app.post("/api/v1/signin", async (req, res) => {
 
     if (existingUser) {
 
-      const token = jwt.sign({ _id: "Hi there", name: "aasif" }, SECRET_KEY, {
-        expiresIn: '2 days',
-      });
+      const token = jwt.sign({ id: existingUser.id }, JWT_SECRET);
 
       res
         .status(200)
@@ -91,7 +91,76 @@ app.post("/api/v1/signin", async (req, res) => {
   }
 });
 
-app.post("/api/v1/content", (req, res) => {});
+app.post("/api/v1/content", userMiddleware, async (req: Request, res: Response) => {
+  const { link, type, title, tags } = req.body;
+  const userId = req.userId; // Extracted from the middleware
+
+  if (!userId) {
+    res.status(400).json({ message: "User ID is required" });
+    return;
+}
+
+  try {
+      const tagsArray = tags.split(" ");
+
+      // Create the Content entry and connect or create tags in one go
+      const newContentEntry = await prisma.content.create({
+          data: {
+              link,
+              type,
+              title,
+              userId,
+              tags: {
+                  connectOrCreate: tagsArray.map((tagTitle : any) => ({
+                      where: { title: tagTitle },
+                      create: { title: tagTitle },
+                  })),
+              },
+          },
+      });
+
+      res.status(200).json({
+          message: "Content created successfully",
+          content: newContentEntry,
+      });
+  } catch (error) {
+      console.error("Error creating content:", error);
+      res.status(500).json({ message: "Error creating content", error: error });
+  }
+});
+
+app.get("/api/v1/content/:userId", async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  try {
+      // Fetch all contents for the given userId
+      const userContents = await prisma.content.findMany({
+          where: { userId },
+          include: {
+              tags: true, // Include associated tags
+          },
+      });
+
+      // Check if contents exist for the user
+      if (userContents.length === 0) {
+          res.status(404).json({
+              message: "No contents found for the given user",
+          });
+          return;
+      }
+
+      res.status(200).json({
+          message: "Contents retrieved successfully",
+          contents: userContents,
+      });
+  } catch (error) {
+      console.error("Error fetching user contents:", error);
+      res.status(500).json({
+          message: "Error fetching contents",
+          error: error,
+      });
+  }
+});
 
 app.get("/api/v1/content", (req, res) => {});
 

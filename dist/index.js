@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
+const config_1 = require("./config");
+const middleware_1 = require("./middleware");
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
 const SECRET_KEY = "Hey";
@@ -77,9 +79,7 @@ app.post("/api/v1/signin", (req, res) => __awaiter(void 0, void 0, void 0, funct
             select: { id: true },
         });
         if (existingUser) {
-            const token = jsonwebtoken_1.default.sign({ _id: "Hi there", name: "aasif" }, SECRET_KEY, {
-                expiresIn: '2 days',
-            });
+            const token = jsonwebtoken_1.default.sign({ id: existingUser.id }, config_1.JWT_SECRET);
             res
                 .status(200)
                 .json({ message: "congrats you are signed in", user: existingUser, jwt: token });
@@ -96,7 +96,70 @@ app.post("/api/v1/signin", (req, res) => __awaiter(void 0, void 0, void 0, funct
             .json({ message: "error occured while logging in ", error: e });
     }
 }));
-app.post("/api/v1/content", (req, res) => { });
+app.post("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { link, type, title, tags } = req.body;
+    const userId = req.userId; // Extracted from the middleware
+    if (!userId) {
+        res.status(400).json({ message: "User ID is required" });
+        return;
+    }
+    try {
+        const tagsArray = tags.split(" ");
+        // Create the Content entry and connect or create tags in one go
+        const newContentEntry = yield prisma.content.create({
+            data: {
+                link,
+                type,
+                title,
+                userId,
+                tags: {
+                    connectOrCreate: tagsArray.map((tagTitle) => ({
+                        where: { title: tagTitle },
+                        create: { title: tagTitle },
+                    })),
+                },
+            },
+        });
+        res.status(200).json({
+            message: "Content created successfully",
+            content: newContentEntry,
+        });
+    }
+    catch (error) {
+        console.error("Error creating content:", error);
+        res.status(500).json({ message: "Error creating content", error: error });
+    }
+}));
+app.get("/api/v1/content/:userId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.params;
+    try {
+        // Fetch all contents for the given userId
+        const userContents = yield prisma.content.findMany({
+            where: { userId },
+            include: {
+                tags: true, // Include associated tags
+            },
+        });
+        // Check if contents exist for the user
+        if (userContents.length === 0) {
+            res.status(404).json({
+                message: "No contents found for the given user",
+            });
+            return;
+        }
+        res.status(200).json({
+            message: "Contents retrieved successfully",
+            contents: userContents,
+        });
+    }
+    catch (error) {
+        console.error("Error fetching user contents:", error);
+        res.status(500).json({
+            message: "Error fetching contents",
+            error: error,
+        });
+    }
+}));
 app.get("/api/v1/content", (req, res) => { });
 app.listen(PORT, () => {
     console.log(`Server running on PORT http://localhost:${PORT}`);
