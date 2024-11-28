@@ -130,8 +130,8 @@ app.post("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter
         res.status(500).json({ message: "Error creating content", error: error });
     }
 }));
-app.get("/api/v1/content/:userId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId } = req.params;
+app.get("/api/v1/content/", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.userId;
     try {
         // Fetch all contents for the given userId
         const userContents = yield prisma.content.findMany({

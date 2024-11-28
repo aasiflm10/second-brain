@@ -129,8 +129,8 @@ app.post("/api/v1/content", userMiddleware, async (req: Request, res: Response) 
   }
 });
 
-app.get("/api/v1/content/:userId", async (req: Request, res: Response) => {
-  const { userId } = req.params;
+app.get("/api/v1/content/", userMiddleware, async (req: Request, res: Response) => {
+  const userId = req.userId;
 
   try {
       // Fetch all contents for the given userId
@@ -161,8 +161,6 @@ app.get("/api/v1/content/:userId", async (req: Request, res: Response) => {
       });
   }
 });
-
-app.get("/api/v1/content", (req, res) => {});
 
 app.listen(PORT, () => {
   console.log(`Server running on PORT http://localhost:${PORT}`);
