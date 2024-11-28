@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 
 const app = express();
 const prisma = new PrismaClient();
-
+const SECRET_KEY = "Hey"
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -38,7 +38,7 @@ app.post("/api/v1/signup", async (req, res) => {
     });
 
     if (existingUser) {
-      res.status(409).json({ message: "Username already taken." });
+      res.status(409).json({ message: "Username already taken."});
       return;
     }
 
@@ -71,9 +71,14 @@ app.post("/api/v1/signin", async (req, res) => {
     });
 
     if (existingUser) {
+
+      const token = jwt.sign({ _id: "Hi there", name: "aasif" }, SECRET_KEY, {
+        expiresIn: '2 days',
+      });
+
       res
         .status(200)
-        .json({ message: "congrats you are signed in", user: existingUser });
+        .json({ message: "congrats you are signed in", user: existingUser , jwt : token});
       return;
     } else {
       res.status(400).json({ mesage: "user not found ", user: existingUser });

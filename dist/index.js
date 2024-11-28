@@ -13,25 +13,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
+const SECRET_KEY = "Hey";
 const PORT = process.env.PORT || 3000;
 app.use(express_1.default.json());
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
     res.status(200).json({ message: "Server running fine" });
 });
-app.get('/api/v1/database-connection', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.get("/api/v1/database-connection", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield prisma.$connect();
         res.status(200).json({ message: "Database is connected and active" });
     }
     catch (error) {
         console.log("Database connection error: ", error);
-        res.status(500).json({ message: "Failed to connect to database : ", error: error });
+        res
+            .status(500)
+            .json({ message: "Failed to connect to database : ", error: error });
     }
 }));
-app.post('/api/v1/signup', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/api/v1/signup", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const username = req.body.username;
     const password = req.body.password;
     if (!username || !password) {
@@ -40,7 +44,7 @@ app.post('/api/v1/signup', (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
     try {
         const existingUser = yield prisma.user.findFirst({
-            where: { username }
+            where: { username },
         });
         if (existingUser) {
             res.status(409).json({ message: "Username already taken." });
@@ -49,28 +53,36 @@ app.post('/api/v1/signup', (req, res) => __awaiter(void 0, void 0, void 0, funct
         const newEntry = yield prisma.user.create({
             data: {
                 username: username,
-                password: password
-            }
+                password: password,
+            },
         });
         console.log("User created successfully ", newEntry);
-        res.status(200).json({ message: "user created successfully", user: newEntry });
+        res
+            .status(200)
+            .json({ message: "user created successfully", user: newEntry });
     }
     catch (error) {
         res.status(400).json({ message: "error creating a user", error: error });
     }
 }));
-app.post('/api/v1/signin', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/api/v1/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const username = req.body.username;
     const password = req.body.password;
     try {
         const existingUser = yield prisma.user.findFirst({
             where: {
                 username,
-                password
-            }
+                password,
+            },
+            select: { id: true },
         });
         if (existingUser) {
-            res.status(200).json({ message: "congrats you are signed in", user: existingUser });
+            const token = jsonwebtoken_1.default.sign({ _id: "Hi there", name: "aasif" }, SECRET_KEY, {
+                expiresIn: '2 days',
+            });
+            res
+                .status(200)
+                .json({ message: "congrats you are signed in", user: existingUser, jwt: token });
             return;
         }
         else {
@@ -79,13 +91,13 @@ app.post('/api/v1/signin', (req, res) => __awaiter(void 0, void 0, void 0, funct
         }
     }
     catch (e) {
-        res.status(400).json({ message: "error occured while logging in ", error: e });
+        res
+            .status(400)
+            .json({ message: "error occured while logging in ", error: e });
     }
 }));
-app.post('/api/v1/content', (req, res) => {
-});
-app.get('/api/v1/content', (req, res) => {
-});
+app.post("/api/v1/content", (req, res) => { });
+app.get("/api/v1/content", (req, res) => { });
 app.listen(PORT, () => {
     console.log(`Server running on PORT http://localhost:${PORT}`);
 });
